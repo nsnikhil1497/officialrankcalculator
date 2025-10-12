@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { 
+        font-family: 'Inter', sans-serif; 
+        padding: 0; 
+        background-color: #1F3A65; 
+        background: linear-gradient(135deg, #1F3A65 0%, #3a5c8e 50%, #1F3A65 100%); 
+        background-size: cover; 
+        background-attachment: fixed; 
+        background-repeat: no-repeat;
+    }
+    .header { background-color: rgba(31, 58, 101, 0.9); color: #B8860B; padding: 15px 20px; text-align: center; border-radius: 8px 8px 0 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .header h1 { 
+        font-size: 38px; font-weight: 900; letter-spacing: 2px; margin: 0; display: flex; align-items: center; justify-content: center; 
+        color: #DAA520; text-shadow: 0px 4px 6px rgba(0, 0, 0, 0.5); -webkit-text-stroke: 0.5px #1F3A65; white-space: nowrap;
+    }
+    .header h1 span { margin-left: 10px; color: white; font-size: 0.7em; font-weight: 500; text-shadow: none; -webkit-text-stroke: none; white-space: nowrap; }
+    .header h1 .logo-icon { font-size: 1.2em; margin-right: 10px; }
+
+    .container { max-width: 700px; margin: 30px auto; background-color: rgba(255, 255, 255, 0.9); box-shadow: 0 0 15px rgba(0,0,0,0.4); border-radius: 8px; overflow: hidden; }
+    .tab-nav { display: flex; background-color: #1F3A65; }
+    .tab-btn { flex: 1; padding: 15px 0; text-align: center; cursor: pointer; color: #DAA520; border: none; font-size: 16px; transition: background-color 0.3s, color 0.3s; }
+    .tab-btn:not(.active):hover { background-color: rgba(0, 0, 0, 0.2); color: #ffffff; }
+    .tab-btn.active { background-color: #B8860B; color: #1F3A65; font-weight: bold; }
+
+    .tab-content { padding: 25px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    label { display: block; margin-top: 15px; font-weight: 600; color: #1F3A65; }
+    input[type=text], input[type=email], input[type=number], select { width: 100%; padding: 10px; margin-top: 8px; border: 2px solid #ccc; border-radius: 6px; box-sizing: border-box; transition: border-color 0.3s; }
+    input[type=text]:focus, input[type=email]:focus, input[type=number]:focus, select:focus { border-color: #B8860B; outline: none; }
+    button { background-color: #1F3A65; color: white; padding: 12px 20px; margin-top: 25px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; transition: background-color 0.3s, transform 0.1s; }
+    button:hover:not(:disabled) { background-color: #B8860B; color: #1F3A65; transform: translateY(-1px); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+    
+    #statusMessage, #otpStatus, .status-message { padding: 15px; margin-top: 20px; border-radius: 6px; font-size: 15px; border-left: 5px solid; }
+    .success { background-color: #e6f7e9; color: #1e7e34; border-color: #4CAF50; }
+    .error { background-color: #fce7e7; color: #721c24; border-color: #f44336; }
+    .info { background-color: #f0f4f8; color: #1F3A65; border-color: #B8860B; }
+    
+    #resultContainer { margin-top: 20px; display: none; }
+    #otpVerificationSection { padding: 25px; border: 2px dashed #B8860B; border-radius: 8px; background-color: #fffbf5; margin-top: 25px; }
+
+    .rank-card { background-color: #ffffff; border: 2px solid #DAA520; padding: 30px; border-radius: 10px; box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2); text-align: center; transition: all 0.5s ease-in-out; }
+    .rank-header { color: #1F3A65; font-size: 24px; font-weight: 700; margin-bottom: 20px; border-bottom: 3px solid #DAA520; padding-bottom: 10px; }
+    .overall-rank-display { font-size: 72px; color: #B8860B; font-weight: 900; line-height: 1; margin: 20px 0 10px; text-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
+    .overall-rank-label { color: #1F3A65; font-size: 18px; font-weight: 600; margin-bottom: 30px; text-transform: uppercase; }
+    .rank-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: center; margin-top: 20px; }
+    .rank-stat { background-color: #f0f4f8; padding: 15px; border-radius: 6px; border-bottom: 3px solid #1F3A65; font-size: 14px; color: #333; }
+    .rank-stat strong { display: block; font-size: 24px; color: #1F3A65; font-weight: 700; margin-top: 5px; }
+    
+    .scoring-card { border: 2px solid #B8860B; padding: 15px; border-radius: 8px; margin-top: 20px; background-color: #fffbf5; }
+    .scoring-card h4 { margin-top: 0; color: #1F3A65; border-bottom: 2px solid #B8860B; padding-bottom: 10px; }
+    
+    /* NEW: Timer Display Section */
+    .timer-container { background-color: #fffbf5; border: 2px dashed #DAA520; padding: 25px; border-radius: 10px; margin-top: 20px; text-align: center; box-shadow: 0 6px 10px rgba(0,0,0,0.15); }
+    .timer-container h3 { color: #1F3A65; font-size: 22px; margin-top: 0; font-weight: 700; }
+    .timer-countdown { font-size: 32px; font-weight: bold; color: #B8860B; margin: 15px 0; background-color: #f0f4f8; padding: 10px; border-radius: 6px; }
+    .timer-message { color: #333; font-size: 16px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+<div class="header">
+    <h1><span class="logo-icon">🥇</span> 4th Grade Rank Calculator <span>(Official)</span></h1>
+</div>
+<div class="container">
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="openTab('submission-tab')">1. Submit Data</button>
+        <button class="tab-btn" onclick="openTab('rank-check-tab')">2. Check Your Current Rank</button>
+    </div>
+
+    <!-- TAB 1: DATA SUBMISSION SECTION -->
+    <div id="submission-tab" class="tab-pane active tab-content">
+        <h2>Submit Your Exam Data (Secured by OTP)</h2>
+        <p>Ensure all details are accurate for correct rank prediction.</p>
+        <div id="submissionSection">
+            <form id="submissionForm">
+                <label for="name"><b>Your Full Name</b></label>
+                <input type="text" placeholder="Enter your full name" name="name" required>
+
+                <label for="category"><b>Category</b></label>
+                <select name="category" required>
+                    <option value="">-- Select Category --</option>
+                    <option value="GEN">General (GEN)</option>
+                    <option value="OBC">OBC</option>
+                    <option value="EWS">EWS</option>
+                    <option value="MBC">MBC</option>
+                    <option value="ST">ST</option>
+                    <option value="SC">SC</option>
+                </select>
+                
+                <label for="shift"><b>Shift</b></label>
+                <select name="shift" required>
+                    <option value="">-- Select Shift --</option>
+                    <option value="S1">Shift 1</option>
+                    <option value="S2">Shift 2</option>
+                    <option value="S3">Shift 3</option>
+                    <option value="S4">Shift 4</option>
+                    <option value="S5">Shift 5</option>
+                    <option value="S6">Shift 6</option>
+                </select>
+                
+                <label for="email"><b>Email Address</b></label>
+                <input type="email" placeholder="Email for OTP confirmation" name="email" required>
+
+                <div class="scoring-card">
+                    <h4>📝 Score Details</h4>
+                    <label for="attmptedQuestion"><b>Attempted Questions</b></label>
+                    <input type="number" placeholder="Total questions attempted" name="attmptedQuestion" required min="0">
+
+                    <label for="correctScore"><b>Correct Questions</b></label>
+                    <input type="number" placeholder="Number of correct answers" name="correctScore" required min="0">
+
+                    <label for="wrongQuestion"><b>Wrong Questions</b></label>
+                    <input type="number" placeholder="Number of incorrect answers" name="wrongQuestion" required min="0">
+                </div>
+                
+                <button type="submit" id="submitButton">Get OTP and Submit Data</button>
+            </form>
+            <div id="statusMessage" class="status-message info" style="display:none;"></div>
+        </div>
+        
+        <div id="otpVerificationSection" style="display:none;">
+            <h3>OTP Verification</h3>
+            <p id="otpInstruction"></p>
+            <form id="otpForm">
+                <input type="hidden" name="email">
+                <label for="otp"><b>Enter OTP (6 Digits)</b></label>
+                <input type="text" name="otp" required maxlength="6">
+                <button type="submit" id="verifyButton">Verify and Final Submission</button>
+            </form>
+            <div id="otpStatus" class="status-message info" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- TAB 2: RANK CHECKER SECTION -->
+    <div id="rank-check-tab" class="tab-pane tab-content">
+        <h2>Check Your Current Rank</h2>
+        <p>Enter your Name and the Email you used for submission to get your updated rank.</p>
+        
+        <form id="rankCheckForm">
+            <label for="name_rank"><b>Your Full Name</b></label>
+            <input type="text" placeholder="Enter your full name" name="name" required id="name_rank">
+
+            <label for="email_rank"><b>Email Address</b></label>
+            <input type="email" placeholder="Email used for submission" name="email" required id="email_rank">
+
+            <button type="submit" id="checkButton">Check Rank</button>
+        </form>
+        
+        <div id="resultContainer" style="display:none;"></div>
+    </div>
+</div>
+
+<script>
+    // --- Utility Function to convert seconds to Minutes and Seconds format ---
+    function formatTime(totalSeconds) {
+        if (totalSeconds <= 0) return "0 seconds";
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        let timeString = "";
+        if (minutes > 0) {
+            timeString += minutes + " min";
+            if (seconds > 0) timeString += " ";
+        }
+        if (seconds > 0 || minutes === 0) {
+            timeString += seconds + " sec";
+        }
+        return timeString;
+    }
+    
+    // --- NEW: Polished Timer Countdown Logic ---
+    function startTimer(remainingSeconds, resultContainer, checkButton) {
+        let timeLeft = remainingSeconds;
+        resultContainer.classList.add('timer-container');
+        resultContainer.innerHTML = `
+            <h3>⏳ Processing Your Data</h3>
+            <div class="timer-countdown">${formatTime(timeLeft)}</div>
+            <p class="timer-message">Your data is being processed. Please wait until the 5-minute processing period expires to check your rank or score.</p>
+        `;
+
+        const timerInterval = setInterval(() => {
+            timeLeft--;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                resultContainer.classList.remove('timer-container');
+                resultContainer.classList.add('status-message', 'info');
+                resultContainer.innerHTML = '✅ Processing complete! You can now check your rank and score.';
+                checkButton.disabled = false;
+            } else {
+                document.querySelector('.timer-countdown').innerText = formatTime(timeLeft);
+            }
+        }, 1000);
+    }
+    
+    // --- General Tab Switching Logic ---
+    function openTab(tabId) {
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`.tab-btn[onclick="openTab('${tabId}')"]`).classList.add('active');
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        openTab('submission-tab'); 
+    });
+
+    // --- Submission Form (Tab 1) Logic ---
+    const submissionForm = document.getElementById('submissionForm');
+    const submissionStatusDiv = document.getElementById('statusMessage');
+    const otpVerificationSection = document.getElementById('otpVerificationSection');
+    const otpInstruction = document.getElementById('otpInstruction');
+    const otpForm = document.getElementById('otpForm');
+    const otpStatusDiv = document.getElementById('otpStatus');
+
+    submissionForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = e.target;
+        const button = document.getElementById('submitButton');
+
+        button.disabled = true;
+        submissionStatusDiv.style.display = 'block';
+        submissionStatusDiv.classList.remove('error', 'success');
+        submissionStatusDiv.classList.add('info');
+        submissionStatusDiv.innerHTML = 'Processing request and sending OTP...';
+
+        const formData = {
+            name: form.name.value,
+            category: form.category.value,
+            shift: form.shift.value,
+            email: form.email.value, 
+            attmptedQuestion: form.attmptedQuestion.value,
+            correctScore: form.correctScore.value,
+            wrongQuestion: form.wrongQuestion.value
+        };
+
+        google.script.run
+            .withSuccessHandler(function(result) {
+                if (result.success) {
+                    submissionStatusDiv.classList.remove('info', 'error');
+                    submissionStatusDiv.classList.add('success');
+                    submissionStatusDiv.innerHTML = result.message;
+                    
+                    document.getElementById('submissionSection').style.display = 'none';
+                    otpVerificationSection.style.display = 'block';
+                    
+                    otpForm.email.value = result.email;
+                    otpInstruction.innerHTML = 'An OTP has been sent to <strong>' + result.email + '</strong>. Please enter it below.';
+                    submissionForm.reset(); // Reset the form after successful OTP generation
+                } else {
+                    submissionStatusDiv.classList.remove('info', 'success');
+                    submissionStatusDiv.classList.add('error');
+                    submissionStatusDiv.innerHTML = result.message;
+                    button.disabled = false;
+                }
+            })
+            .withFailureHandler(function(error) {
+                button.disabled = false;
+                submissionStatusDiv.classList.remove('info', 'success');
+                submissionStatusDiv.classList.add('error');
+                submissionStatusDiv.innerHTML = 'An error occurred: ' + error;
+            })
+            .generateAndSendOTP(formData);
+    });
+    
+    // --- OTP Verification Form Submission Logic ---
+    otpForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const form = e.target;
+        const button = document.getElementById('verifyButton');
+        const email = form.email.value;
+        const otp = form.otp.value;
+        
+        button.disabled = true;
+        otpStatusDiv.style.display = 'block';
+        otpStatusDiv.classList.remove('error', 'success');
+        otpStatusDiv.classList.add('info');
+        otpStatusDiv.innerHTML = 'Verifying OTP and finalizing submission...';
+
+        google.script.run
+            .withSuccessHandler(function(result) {
+                button.disabled = false;
+                if (result.success) {
+                    otpStatusDiv.classList.remove('info', 'error');
+                    otpStatusDiv.classList.add('success');
+                    otpStatusDiv.innerHTML = result.message;
+                    button.disabled = true;
+                    otpForm.reset(); // Reset OTP form after successful submission
+                } else {
+                    otpStatusDiv.classList.remove('info', 'success');
+                    otpStatusDiv.classList.add('error');
+                    otpStatusDiv.innerHTML = result.message;
+                }
+            })
+            .withFailureHandler(function(error) {
+                button.disabled = false;
+                otpStatusDiv.classList.remove('info', 'success');
+                otpStatusDiv.classList.add('error');
+                otpStatusDiv.innerHTML = 'An error occurred during verification: ' + error;
+            })
+            .verifyOTPAndSubmit(email, otp);
+    });
+
+    // --- Rank Check Form (Tab 2) Logic with Input Validation ---
+    const rankCheckForm = document.getElementById('rankCheckForm');
+    const resultContainer = document.getElementById('resultContainer');
+    
+    rankCheckForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const button = document.getElementById('checkButton');
+        const name = form.name.value.trim();
+        const email = form.email.value.trim();
+
+        // Client-side validation
+        if (!name) {
+            resultContainer.style.display = 'block';
+            resultContainer.classList.remove('info', 'success');
+            resultContainer.classList.add('status-message', 'error');
+            resultContainer.innerHTML = 'Please enter your full name.';
+            return;
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            resultContainer.style.display = 'block';
+            resultContainer.classList.remove('info', 'success');
+            resultContainer.classList.add('status-message', 'error');
+            resultContainer.innerHTML = 'Please enter a valid email address.';
+            return;
+        }
+
+        button.disabled = true;
+        resultContainer.style.display = 'block';
+        resultContainer.removeAttribute('class');
+        resultContainer.classList.add('status-message', 'info');
+        resultContainer.innerHTML = 'Checking submission status...';
+
+        const formData = {
+            name: name,
+            email: email
+        };
+
+        google.script.run
+            .withSuccessHandler(function(result) {
+                if (result.success) {
+                    // Success: Display Rank
+                    resultContainer.classList.remove('status-message', 'info');
+                    resultContainer.classList.add('rank-card');
+                    
+                    let html = `
+                        <div class="rank-header">
+                            ✅ Rank Card for ${result.name}
+                        </div>
+                        <div class="overall-rank-display">
+                            ${result.overallRank}
+                        </div>
+                        <div class="overall-rank-label">
+                            Overall Rank (Out of ${result.totalCandidates} Candidates)
+                        </div>
+                        <p>Raw Score: <strong>${result.rawScore}</strong></p>
+                        
+                        <div class="rank-stats-grid">
+                            <div class="rank-stat">
+                                Shift Rank: 
+                                <strong>${result.shiftRank} (of ${result.totalShiftCandidates || 'N/A'})</strong>
+                            </div>
+                            <div class="rank-stat">
+                                Category Rank: 
+                                <strong>${result.categoryRank} (of ${result.totalCategoryCandidates || 'N/A'})</strong>
+                            </div>
+                            <div class="rank-stat">
+                                Shift: 
+                                <strong>${result.shift || 'N/A'}</strong>
+                            </div>
+                            <div class="rank-stat">
+                                Category: 
+                                <strong>${result.category || 'N/A'}</strong>
+                            </div>
+                        </div>
+                    `;
+                    resultContainer.innerHTML = html;
+                    button.disabled = false;
+                } else {
+                    // Check if waiting period is active
+                    if (result.remainingTime) {
+                        resultContainer.classList.remove('status-message', 'info');
+                        startTimer(result.remainingTime, resultContainer, button);
+                    } else {
+                        resultContainer.classList.remove('info');
+                        resultContainer.classList.add('status-message', 'error');
+                        resultContainer.innerHTML = result.message;
+                        button.disabled = false;
+                    }
+                }
+            })
+            .withFailureHandler(function(error) {
+                button.disabled = false;
+                resultContainer.classList.remove('info');
+                resultContainer.classList.add('status-message', 'error');
+                resultContainer.innerHTML = 'An unexpected error occurred: ' + error;
+            })
+            .checkAndDisplayRank(formData);
+    });
+</script>
+</body>
+</html>
