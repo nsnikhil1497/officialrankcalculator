@@ -228,9 +228,27 @@
         const form = e.target;
         const button = document.getElementById('submitButton');
 
-        button.disabled = true;
+        // NEW: Validate Attempted Questions and Correct/Wrong Questions
+        const attempted = parseInt(form.attmptedQuestion.value, 10);
+        const correct = parseInt(form.correctScore.value, 10);
+        const wrong = parseInt(form.wrongQuestion.value, 10);
+
         submissionStatusDiv.style.display = 'block';
-        submissionStatusDiv.classList.remove('error', 'success');
+        submissionStatusDiv.classList.remove('error', 'success', 'info');
+
+        if (attempted > 120) {
+            submissionStatusDiv.classList.add('error');
+            submissionStatusDiv.innerHTML = 'Error: Attempted Questions cannot exceed 120.';
+            return;
+        }
+
+        if (correct + wrong !== attempted) {
+            submissionStatusDiv.classList.add('error');
+            submissionStatusDiv.innerHTML = 'Error: Correct Questions + Wrong Questions must equal Attempted Questions.';
+            return;
+        }
+
+        button.disabled = true;
         submissionStatusDiv.classList.add('info');
         submissionStatusDiv.innerHTML = 'Processing request and sending OTP...';
 
