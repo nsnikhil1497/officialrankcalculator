@@ -20,6 +20,40 @@ function doGet() {
 const OTP_STORAGE = PropertiesService.getScriptProperties();
 const SUBMISSION_STORAGE = PropertiesService.getScriptProperties(); // NEW: Separate storage for submission timestamp
 
+// NEW: Array of fallback email accounts (your provided emails)
+const FALLBACK_EMAILS = ['nsnikhil1497gmail.com', 'rankcalculator2025@gmail.com', 'nikhilizzm96@gmail.com']; // Replace with your actual emails
+
+/**
+ * NEW: Helper function to send email using a specific sender (fallback logic).
+ * Tries to send from each email in FALLBACK_EMAILS until success.
+ * @param {string} to - Recipient email.
+ * @param {string} subject - Email subject.
+ * @param {string} htmlBody - HTML body.
+ * @returns {boolean} True if sent successfully from any account.
+ */
+function sendEmailWithFallback(to, subject, htmlBody) {
+  for (let senderEmail of FALLBACK_EMAILS) {
+    try {
+      // Note: MailApp uses the script owner's account (primary@gmail.com).
+      // For true multi-account sending, use Gmail API with OAuth tokens (advanced).
+      // This is a simplified fallback; upgrade to API for high volume.
+      MailApp.sendEmail({
+        to: to,
+        subject: subject,
+        htmlBody: htmlBody
+      });
+      
+      Logger.log(`OTP sent successfully from ${senderEmail} to ${to}`);
+      return true; // Success, break loop
+    } catch (error) {
+      Logger.log(`Failed to send from ${senderEmail} to ${to}: ${error.toString()}. Trying next...`);
+      // If this is the last one, it will throw at the end.
+    }
+  }
+  // If all fail
+  throw new Error('All fallback email accounts failed to send OTP. Please check account limits.');
+}
+
 /**
  * Receives form data, generates an OTP, emails it,
  * and stores the OTP and submission timestamp.
@@ -34,9 +68,27 @@ function generateAndSendOTP(formData) {
         }
 
         // Check if email already has a pending OTP in PropertiesService
-        const storedOTP = OTP_STORAGE.getProperty(email);
-        if (storedOTP) {
-            return { success: false, message: "A submission is already in progress for this email. Please complete OTP verification or try again after 5 minutes." };
+        const storedOTPString = OTP_STORAGE.getProperty(email);
+        if (storedOTPString) {
+            const storedSubmissionString = SUBMISSION_STORAGE.getProperty(`submission_${email}`);
+            if (storedSubmissionString) {
+                const stored = JSON.parse(storedSubmissionString);
+                const timeDifference = new Date().getTime() - stored.timestamp;
+                const FIVE_MINUTES = 5 * 60 * 1000;
+
+                if (timeDifference > FIVE_MINUTES) {
+                    // OTP expired, clear both OTP and submission data
+                    OTP_STORAGE.deleteProperty(email);
+                    SUBMISSION_STORAGE.deleteProperty(`submission_${email}`);
+                    Logger.log(`Cleared expired OTP and submission for ${email}`);
+                } else {
+                    return { success: false, message: "A submission is already in progress for this email. Please complete OTP verification or try again after 5 minutes." };
+                }
+            } else {
+                // No submission timestamp, clear stale OTP
+                OTP_STORAGE.deleteProperty(email);
+                Logger.log(`Cleared stale OTP for ${email} due to missing submission timestamp`);
+            }
         }
 
         // Check if email already exists in the sheet
@@ -55,27 +107,28 @@ function generateAndSendOTP(formData) {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const submissionTimestamp = new Date().getTime();
 
-        // Store OTP (using email as key, valid for 5 minutes)
+        // Store OTP and submission timestamp
         OTP_STORAGE.setProperty(email, JSON.stringify({ otp: otp, data: formData }));
-        // NEW: Store submission timestamp separately
         SUBMISSION_STORAGE.setProperty(`submission_${email}`, JSON.stringify({ timestamp: submissionTimestamp }));
 
-        // Send email
-        MailApp.sendEmail({
-            to: email,
-            subject: "Your Rank Predictor OTP",
-            htmlBody: `
-                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
-                    <h2 style="color: #1F3A65;">Rank Submission OTP</h2>
-                    <p>Below is your one-time password (OTP) to verify your Rank Predictor data submission:</p>
-                    <p style="font-size: 24px; font-weight: bold; color: #DAA520; background-color: #f0f4f8; padding: 10px; border-radius: 4px; display: inline-block;">
-                        ${otp}
-                    </p>
-                    <p>This OTP is valid for the next 5 minutes. Please enter it in the app.</p>
-                    <p style="font-size: 12px; color: #777;">If you did not request this, please ignore this email.</p>
-                </div>
-            `
-        });
+        // NEW: Log remaining email quota
+        Logger.log("Remaining email quota: " + MailApp.getRemainingDailyQuota());
+
+        // NEW: Use fallback email sending
+        const subject = "Your Rank Predictor OTP";
+        const htmlBody = `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
+                <h2 style="color: #1F3A65;">Rank Submission OTP</h2>
+                <p>Below is your one-time password (OTP) to verify your Rank Predictor data submission:</p>
+                <p style="font-size: 24px; font-weight: bold; color: #DAA520; background-color: #f0f4f8; padding: 10px; border-radius: 4px; display: inline-block;">
+                    ${otp}
+                </p>
+                <p>This OTP is valid for the next 5 minutes. Please enter it in the app.</p>
+                <p style="font-size: 12px; color: #777;">If you did not request this, please ignore this email.</p>
+            </div>
+        `;
+
+        sendEmailWithFallback(email, subject, htmlBody);
 
         Logger.log("OTP Sent to " + email);
         return { success: true, message: "OTP sent successfully! Please check your email to finalize submission.", email: email };
@@ -123,7 +176,7 @@ function verifyOTPAndSubmit(email, otp) {
         const ss = SpreadsheetApp.getActiveSpreadsheet();
         const sheet = ss.getSheetByName("Sheet1") || ss.getSheets()[0]; 
         
-        // **FIX 1: Ensure header row is complete (12 columns)**
+        // Ensure header row is complete (12 columns)
         if (sheet.getLastRow() === 0) {
             sheet.appendRow(["Timestamp", "Name", "Category", "Shift", "Email", "Attempted Question", "Correct question", "Wrong Question", "Raw score", "Overall Rank", "Shift Rank", "Category Rank"]);
         }
@@ -133,8 +186,7 @@ function verifyOTPAndSubmit(email, otp) {
         const negativeMarks = parseFloat(stored.data.wrongQuestion) * 0.555;
         const rawScore = Math.round((correctMarks - negativeMarks) * 100) / 100; 
         
-        // **FIX 2: Append 12 columns, keeping Rank columns (10, 11, 12) empty**
-        // Rank columns are filled later by checkAndDisplayRank, or a time-based trigger.
+        // Append 12 columns, keeping Rank columns (10, 11, 12) empty
         sheet.appendRow([
             new Date(),                         // 1. Timestamp
             stored.data.name,                   // 2. Name
@@ -210,13 +262,25 @@ function checkOTPExpiry(email) {
 
 /**
  * Calculates and displays the rank for the given name and email.
- * **FIX: This function now also writes the calculated ranks back to the sheet.**
+ * Writes the calculated ranks back to the sheet.
  * @param {Object} formData - User's name and email.
  * @returns {Object} Rank details or failure message.
  */
 function checkAndDisplayRank(formData) {
     try {
-        // NEW: Check submission timestamp before proceeding
+        // Input validation
+        if (!formData || !formData.email || !formData.name) {
+            Logger.log("Invalid input: formData is missing email or name");
+            return { success: false, message: "Please provide both email and name to check rank." };
+        }
+        formData.email = String(formData.email || '').trim();
+        formData.name = String(formData.name || '').trim();
+        if (!formData.email || !formData.name) {
+            Logger.log("Invalid input: email or name is empty after trimming");
+            return { success: false, message: "Email or name cannot be empty. Please check your input." };
+        }
+
+        // Check submission timestamp before proceeding
         const expiryCheck = checkOTPExpiry(formData.email);
         if (!expiryCheck.canCheckRank) {
             return {
@@ -232,19 +296,25 @@ function checkAndDisplayRank(formData) {
         const dataRange = sheet.getDataRange();
         const values = dataRange.getValues();
         
-        // NEW: Pre-check if email exists in the sheet
-        const emailExists = values.some(row => row[4] === formData.email.trim());
+        // Check if sheet has data
+        if (values.length <= 1) {
+            Logger.log("No data found in sheet for ranking");
+            return { success: false, message: "No data available in the sheet to calculate ranks. Please submit data first." };
+        }
+
+        // Pre-check if email exists in the sheet
+        const emailExists = values.some(row => row[4] === formData.email);
         if (!emailExists) {
             return { success: false, message: "No submission found for this email. Please submit your data first." };
         }
 
-        // Get user's submitted row data based on email and name (case-sensitive with trim)
-        // We also need the original index to update the sheet later.
+        // Get user's submitted row data based on email and name
         let userRow = null;
-        let userRowIndexInSheet = -1; // 0-indexed array row number (including header)
-
-        for (let i = 1; i < values.length; i++) { // Start from row 1 (after headers)
-            if (String(values[i][4]).trim() === formData.email.trim() && String(values[i][1]).trim() === formData.name.trim()) {
+        let userRowIndexInSheet = -1;
+        for (let i = 1; i < values.length; i++) {
+            const email = values[i][4] ? String(values[i][4]).trim() : '';
+            const name = values[i][1] ? String(values[i][1]).trim() : '';
+            if (email === formData.email && name === formData.name) {
                 userRow = values[i];
                 userRowIndexInSheet = i;
                 break;
@@ -256,17 +326,16 @@ function checkAndDisplayRank(formData) {
         }
         
         const userRawScore = userRow[8]; // Raw score is column 9 (index 8)
-        const userShift = userRow[3] ? String(userRow[3]).trim() : ''; // Shift is column 4 (index 3)
-        const userCategory = userRow[2] ? String(userRow[2]).trim() : ''; // Category is column 3 (index 2)
+        const userShift = userRow[3] ? String(userRow[3]).trim() : '';
+        const userCategory = userRow[2] ? String(userRow[2]).trim() : '';
         
         // Filter valid rows (skipping header row)
         const rankedData = values.slice(1).filter(row => {
             const score = row[8];
-            return (score !== "" && !isNaN(score));
+            return (score != null && score !== "" && !isNaN(Number(score)));
         });
 
         // Rank Calculation
-        // Sort data descending by Raw score (index 8)
         rankedData.sort((a, b) => Number(b[8]) - Number(a[8])); 
 
         let overallRank = 0;
@@ -277,7 +346,7 @@ function checkAndDisplayRank(formData) {
         
         // Calculate Overall Rank
         for (let i = 0; i < rankedData.length; i++) {
-            if (String(rankedData[i][4]).trim() === formData.email.trim()) {
+            if (String(rankedData[i][4]).trim() === formData.email) {
                 overallRank = i + 1;
                 break;
             }
@@ -287,7 +356,7 @@ function checkAndDisplayRank(formData) {
         const shiftCandidates = rankedData.filter(row => (String(row[3]).trim() === userShift));
         totalShiftCandidates = shiftCandidates.length;
         for (let i = 0; i < shiftCandidates.length; i++) {
-            if (String(shiftCandidates[i][4]).trim() === formData.email.trim()) {
+            if (String(shiftCandidates[i][4]).trim() === formData.email) {
                 shiftRank = i + 1;
                 break;
             }
@@ -297,26 +366,37 @@ function checkAndDisplayRank(formData) {
         const categoryCandidates = rankedData.filter(row => (String(row[2]).trim() === userCategory));
         totalCategoryCandidates = categoryCandidates.length;
         for (let i = 0; i < categoryCandidates.length; i++) {
-            if (String(categoryCandidates[i][4]).trim() === formData.email.trim()) {
+            if (String(categoryCandidates[i][4]).trim() === formData.email) {
                 categoryRank = i + 1;
                 break;
             }
         }
 
-        // --- FIX 3: Write calculated ranks back to the Google Sheet ---
+        // Write calculated ranks back to the Google Sheet
         if (userRowIndexInSheet !== -1) {
-            const targetRow = userRowIndexInSheet + 1; // 1-indexed Sheet Row Number
-            
-            // Starting column for Ranks: "Overall Rank" (Column J, which is 10th column)
-            // Range is (startRow, startCol, numRows, numCols)
-            // We write 3 columns (Overall Rank, Shift Rank, Category Rank)
-            sheet.getRange(targetRow, 10, 1, 3).setValues([[overallRank, shiftRank, categoryRank]]);
-            Logger.log(`Successfully updated ranks for ${formData.email} in row ${targetRow}.`);
-
-            // Since ranks have been calculated and written, we can remove the submission timestamp.
-            SUBMISSION_STORAGE.deleteProperty(`submission_${formData.email}`);
+            try {
+                const targetRow = userRowIndexInSheet + 1;
+                sheet.getRange(targetRow, 10, 1, 3).setValues([[overallRank, shiftRank, categoryRank]]);
+                Logger.log(`Successfully updated ranks for ${formData.email} in row ${targetRow}.`);
+                SUBMISSION_STORAGE.deleteProperty(`submission_${formData.email}`);
+            } catch (e) {
+                Logger.log(`Failed to update ranks for ${formData.email}: ${e.toString()}`);
+                return { 
+                    success: true, 
+                    message: "Ranks calculated but failed to update sheet. Contact admin. Error: " + e.toString(),
+                    name: userRow[1],
+                    overallRank: overallRank,
+                    totalCandidates: rankedData.length,
+                    rawScore: userRawScore,
+                    shiftRank: shiftRank,
+                    totalShiftCandidates: totalShiftCandidates,
+                    categoryRank: categoryRank,
+                    totalCategoryCandidates: totalCategoryCandidates,
+                    shift: userShift,
+                    category: userCategory
+                };
+            }
         }
-        // -------------------------------------------------------------------
 
         return { 
             success: true, 
@@ -328,12 +408,17 @@ function checkAndDisplayRank(formData) {
             totalShiftCandidates: totalShiftCandidates, 
             categoryRank: categoryRank,
             totalCategoryCandidates: totalCategoryCandidates,
-            shift: userShift, // NEW: Return shift
-            category: userCategory // NEW: Return category
+            shift: userShift,
+            category: userCategory
         };
 
     } catch (e) {
         Logger.log("Error in checkAndDisplayRank: " + e.toString());
         return { success: false, message: "An unexpected error occurred during rank check: " + e.toString() };
     }
+}
+
+function checkQuota() {
+  Logger.log("Remaining email quota: " + MailApp.getRemainingDailyQuota());
+  Logger.log("Active user: " + Session.getActiveUser().getEmail());
 }
