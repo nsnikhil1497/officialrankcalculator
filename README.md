@@ -7,7 +7,7 @@
 ## 🚀 Live Demo
 
 **टूल का सीधा उपयोग यहाँ करें (Click to use the live tool):**
-[https://tinyurl.com/officialrankcalculator] 
+[https://tinyurl.com/rankcalculatorofficial] 
 
 ---
 
