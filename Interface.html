@@ -36,14 +36,11 @@
     button:hover:not(:disabled) { background-color: #B8860B; color: #1F3A65; transform: translateY(-1px); }
     button:disabled { background-color: #ccc; cursor: not-allowed; }
     
-    #statusMessage, #otpStatus, .status-message { padding: 15px; margin-top: 20px; border-radius: 6px; font-size: 15px; border-left: 5px solid; }
+    .status-message { padding: 15px; margin-top: 20px; border-radius: 6px; font-size: 15px; border-left: 5px solid; }
     .success { background-color: #e6f7e9; color: #1e7e34; border-color: #4CAF50; }
     .error { background-color: #fce7e7; color: #721c24; border-color: #f44336; }
     .info { background-color: #f0f4f8; color: #1F3A65; border-color: #B8860B; }
     
-    #resultContainer { margin-top: 20px; display: none; }
-    #otpVerificationSection { padding: 25px; border: 2px dashed #B8860B; border-radius: 8px; background-color: #fffbf5; margin-top: 25px; }
-
     .rank-card { background-color: #ffffff; border: 2px solid #DAA520; padding: 30px; border-radius: 10px; box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2); text-align: center; transition: all 0.5s ease-in-out; }
     .rank-header { color: #1F3A65; font-size: 24px; font-weight: 700; margin-bottom: 20px; border-bottom: 3px solid #DAA520; padding-bottom: 10px; }
     .overall-rank-display { font-size: 72px; color: #B8860B; font-weight: 900; line-height: 1; margin: 20px 0 10px; text-shadow: 2px 2px 5px rgba(0,0,0,0.1); }
@@ -54,12 +51,6 @@
     
     .scoring-card { border: 2px solid #B8860B; padding: 15px; border-radius: 8px; margin-top: 20px; background-color: #fffbf5; }
     .scoring-card h4 { margin-top: 0; color: #1F3A65; border-bottom: 2px solid #B8860B; padding-bottom: 10px; }
-    
-    /* NEW: Timer Display Section */
-    .timer-container { background-color: #fffbf5; border: 2px dashed #DAA520; padding: 25px; border-radius: 10px; margin-top: 20px; text-align: center; box-shadow: 0 6px 10px rgba(0,0,0,0.15); }
-    .timer-container h3 { color: #1F3A65; font-size: 22px; margin-top: 0; font-weight: 700; }
-    .timer-countdown { font-size: 32px; font-weight: bold; color: #B8860B; margin: 15px 0; background-color: #f0f4f8; padding: 10px; border-radius: 6px; }
-    .timer-message { color: #333; font-size: 16px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -74,12 +65,15 @@
 
     <!-- TAB 1: DATA SUBMISSION SECTION -->
     <div id="submission-tab" class="tab-pane active tab-content">
-        <h2>Submit Your Exam Data (Secured by OTP)</h2>
+        <h2>Submit Your Exam Data</h2>
         <p>Ensure all details are accurate for correct rank prediction.</p>
         <div id="submissionSection">
             <form id="submissionForm">
                 <label for="name"><b>Your Full Name</b></label>
                 <input type="text" placeholder="Enter your full name" name="name" required>
+
+                <label for="email"><b>Email Address</b></label>
+                <input type="email" placeholder="Enter your email" name="email" required>
 
                 <label for="category"><b>Category</b></label>
                 <select name="category" required>
@@ -102,9 +96,6 @@
                     <option value="S5">Shift 5</option>
                     <option value="S6">Shift 6</option>
                 </select>
-                
-                <label for="email"><b>Email Address</b></label>
-                <input type="email" placeholder="Email for OTP confirmation" name="email" required>
 
                 <div class="scoring-card">
                     <h4>📝 Score Details</h4>
@@ -118,35 +109,23 @@
                     <input type="number" placeholder="Number of incorrect answers" name="wrongQuestion" required min="0">
                 </div>
                 
-                <button type="submit" id="submitButton">Get OTP and Submit Data</button>
+                <button type="submit" id="submitButton">Submit Data</button>
             </form>
             <div id="statusMessage" class="status-message info" style="display:none;"></div>
-        </div>
-        
-        <div id="otpVerificationSection" style="display:none;">
-            <h3>OTP Verification</h3>
-            <p id="otpInstruction"></p>
-            <form id="otpForm">
-                <input type="hidden" name="email">
-                <label for="otp"><b>Enter OTP (6 Digits)</b></label>
-                <input type="text" name="otp" required maxlength="6">
-                <button type="submit" id="verifyButton">Verify and Final Submission</button>
-            </form>
-            <div id="otpStatus" class="status-message info" style="display:none;"></div>
         </div>
     </div>
 
     <!-- TAB 2: RANK CHECKER SECTION -->
     <div id="rank-check-tab" class="tab-pane tab-content">
         <h2>Check Your Current Rank</h2>
-        <p>Enter your Name and the Email you used for submission to get your updated rank.</p>
+        <p>Enter your Name and Email to get your updated rank.</p>
         
         <form id="rankCheckForm">
             <label for="name_rank"><b>Your Full Name</b></label>
             <input type="text" placeholder="Enter your full name" name="name" required id="name_rank">
 
             <label for="email_rank"><b>Email Address</b></label>
-            <input type="email" placeholder="Email used for submission" name="email" required id="email_rank">
+            <input type="email" placeholder="Enter your email" name="email" required id="email_rank">
 
             <button type="submit" id="checkButton">Check Rank</button>
         </form>
@@ -156,48 +135,25 @@
 </div>
 
 <script>
-    // --- Utility Function to convert seconds to Minutes and Seconds format ---
-    function formatTime(totalSeconds) {
-        if (totalSeconds <= 0) return "0 seconds";
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        
-        let timeString = "";
-        if (minutes > 0) {
-            timeString += minutes + " min";
-            if (seconds > 0) timeString += " ";
-        }
-        if (seconds > 0 || minutes === 0) {
-            timeString += seconds + " sec";
-        }
-        return timeString;
+    // Function to generate a UUID for device identification
+    function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
-    
-    // --- NEW: Polished Timer Countdown Logic ---
-    function startTimer(remainingSeconds, resultContainer, checkButton) {
-        let timeLeft = remainingSeconds;
-        resultContainer.classList.add('timer-container');
-        resultContainer.innerHTML = `
-            <h3>⏳ Processing Your Data</h3>
-            <div class="timer-countdown">${formatTime(timeLeft)}</div>
-            <p class="timer-message">Your data is being processed. Please wait until the 5-minute processing period expires to check your rank or score.</p>
-        `;
 
-        const timerInterval = setInterval(() => {
-            timeLeft--;
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                resultContainer.classList.remove('timer-container');
-                resultContainer.classList.add('status-message', 'info');
-                resultContainer.innerHTML = '✅ Processing complete! You can now check your rank and score.';
-                checkButton.disabled = false;
-            } else {
-                document.querySelector('.timer-countdown').innerText = formatTime(timeLeft);
-            }
-        }, 1000);
+    // Store device ID in localStorage to persist across sessions
+    function getDeviceId() {
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = generateUUID();
+            localStorage.setItem('deviceId', deviceId);
+        }
+        return deviceId;
     }
-    
-    // --- General Tab Switching Logic ---
+
+    // General Tab Switching Logic
     function openTab(tabId) {
         document.querySelectorAll('.tab-pane').forEach(pane => {
             pane.classList.remove('active');
@@ -209,18 +165,14 @@
         document.getElementById(tabId).classList.add('active');
         document.querySelector(`.tab-btn[onclick="openTab('${tabId}')"]`).classList.add('active');
     }
-    
+
     document.addEventListener('DOMContentLoaded', () => {
         openTab('submission-tab'); 
     });
 
-    // --- Submission Form (Tab 1) Logic ---
+    // Submission Form (Tab 1) Logic
     const submissionForm = document.getElementById('submissionForm');
     const submissionStatusDiv = document.getElementById('statusMessage');
-    const otpVerificationSection = document.getElementById('otpVerificationSection');
-    const otpInstruction = document.getElementById('otpInstruction');
-    const otpForm = document.getElementById('otpForm');
-    const otpStatusDiv = document.getElementById('otpStatus');
 
     submissionForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -228,7 +180,7 @@
         const form = e.target;
         const button = document.getElementById('submitButton');
 
-        // NEW: Validate Attempted Questions and Correct/Wrong Questions
+        // Validate Attempted Questions and Correct/Wrong Questions
         const attempted = parseInt(form.attmptedQuestion.value, 10);
         const correct = parseInt(form.correctScore.value, 10);
         const wrong = parseInt(form.wrongQuestion.value, 10);
@@ -248,35 +200,37 @@
             return;
         }
 
+        // Validate email format
+        const email = form.email.value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            submissionStatusDiv.classList.add('error');
+            submissionStatusDiv.innerHTML = 'Error: Please enter a valid email address.';
+            return;
+        }
+
         button.disabled = true;
         submissionStatusDiv.classList.add('info');
-        submissionStatusDiv.innerHTML = 'Processing request and sending OTP...';
+        submissionStatusDiv.innerHTML = 'Submitting data...';
 
         const formData = {
             name: form.name.value,
+            email: form.email.value,
             category: form.category.value,
             shift: form.shift.value,
-            email: form.email.value, 
             attmptedQuestion: form.attmptedQuestion.value,
             correctScore: form.correctScore.value,
-            wrongQuestion: form.wrongQuestion.value
+            wrongQuestion: form.wrongQuestion.value,
+            deviceId: getDeviceId()
         };
 
         google.script.run
             .withSuccessHandler(function(result) {
+                submissionStatusDiv.classList.remove('info', 'error');
                 if (result.success) {
-                    submissionStatusDiv.classList.remove('info', 'error');
                     submissionStatusDiv.classList.add('success');
                     submissionStatusDiv.innerHTML = result.message;
-                    
-                    document.getElementById('submissionSection').style.display = 'none';
-                    otpVerificationSection.style.display = 'block';
-                    
-                    otpForm.email.value = result.email;
-                    otpInstruction.innerHTML = 'An OTP has been sent to <strong>' + result.email + '</strong>. Please enter it below.';
-                    submissionForm.reset(); // Reset the form after successful OTP generation
+                    submissionForm.reset();
                 } else {
-                    submissionStatusDiv.classList.remove('info', 'success');
                     submissionStatusDiv.classList.add('error');
                     submissionStatusDiv.innerHTML = result.message;
                     button.disabled = false;
@@ -288,49 +242,10 @@
                 submissionStatusDiv.classList.add('error');
                 submissionStatusDiv.innerHTML = 'An error occurred: ' + error;
             })
-            .generateAndSendOTP(formData);
-    });
-    
-    // --- OTP Verification Form Submission Logic ---
-    otpForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const form = e.target;
-        const button = document.getElementById('verifyButton');
-        const email = form.email.value;
-        const otp = form.otp.value;
-        
-        button.disabled = true;
-        otpStatusDiv.style.display = 'block';
-        otpStatusDiv.classList.remove('error', 'success');
-        otpStatusDiv.classList.add('info');
-        otpStatusDiv.innerHTML = 'Verifying OTP and finalizing submission...';
-
-        google.script.run
-            .withSuccessHandler(function(result) {
-                button.disabled = false;
-                if (result.success) {
-                    otpStatusDiv.classList.remove('info', 'error');
-                    otpStatusDiv.classList.add('success');
-                    otpStatusDiv.innerHTML = result.message;
-                    button.disabled = true;
-                    otpForm.reset(); // Reset OTP form after successful submission
-                } else {
-                    otpStatusDiv.classList.remove('info', 'success');
-                    otpStatusDiv.classList.add('error');
-                    otpStatusDiv.innerHTML = result.message;
-                }
-            })
-            .withFailureHandler(function(error) {
-                button.disabled = false;
-                otpStatusDiv.classList.remove('info', 'success');
-                otpStatusDiv.classList.add('error');
-                otpStatusDiv.innerHTML = 'An error occurred during verification: ' + error;
-            })
-            .verifyOTPAndSubmit(email, otp);
+            .submitFormData(formData);
     });
 
-    // --- Rank Check Form (Tab 2) Logic with Input Validation ---
+    // Rank Check Form (Tab 2) Logic with Input Validation
     const rankCheckForm = document.getElementById('rankCheckForm');
     const resultContainer = document.getElementById('resultContainer');
     
@@ -362,7 +277,7 @@
         resultContainer.style.display = 'block';
         resultContainer.removeAttribute('class');
         resultContainer.classList.add('status-message', 'info');
-        resultContainer.innerHTML = 'Checking submission status...';
+        resultContainer.innerHTML = 'Checking rank...';
 
         const formData = {
             name: name,
@@ -372,7 +287,6 @@
         google.script.run
             .withSuccessHandler(function(result) {
                 if (result.success) {
-                    // Success: Display Rank
                     resultContainer.classList.remove('status-message', 'info');
                     resultContainer.classList.add('rank-card');
                     
@@ -410,16 +324,10 @@
                     resultContainer.innerHTML = html;
                     button.disabled = false;
                 } else {
-                    // Check if waiting period is active
-                    if (result.remainingTime) {
-                        resultContainer.classList.remove('status-message', 'info');
-                        startTimer(result.remainingTime, resultContainer, button);
-                    } else {
-                        resultContainer.classList.remove('info');
-                        resultContainer.classList.add('status-message', 'error');
-                        resultContainer.innerHTML = result.message;
-                        button.disabled = false;
-                    }
+                    resultContainer.classList.remove('info');
+                    resultContainer.classList.add('status-message', 'error');
+                    resultContainer.innerHTML = result.message;
+                    button.disabled = false;
                 }
             })
             .withFailureHandler(function(error) {
