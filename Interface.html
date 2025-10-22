@@ -194,9 +194,9 @@
             return;
         }
 
-        if (correct + wrong !== attempted) {
+        if (attempted > (correct + wrong)) {
             submissionStatusDiv.classList.add('error');
-            submissionStatusDiv.innerHTML = 'Error: Correct Questions + Wrong Questions must equal Attempted Questions.';
+            submissionStatusDiv.innerHTML = 'Error: Attempted Questions cannot be greater than Correct Questions + Wrong Questions.';
             return;
         }
 
@@ -318,6 +318,18 @@
                             <div class="rank-stat">
                                 Category: 
                                 <strong>${result.category || 'N/A'}</strong>
+                            </div>
+                            <div class="rank-stat">
+                                Tied Candidates (Overall): 
+                                <strong>${result.overallTiedCount}</strong>
+                            </div>
+                            <div class="rank-stat">
+                                Tied Candidates (Shift): 
+                                <strong>${result.shiftTiedCount}</strong>
+                            </div>
+                            <div class="rank-stat">
+                                Tied Candidates (Category): 
+                                <strong>${result.categoryTiedCount}</strong>
                             </div>
                         </div>
                     `;
