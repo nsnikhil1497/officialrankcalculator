@@ -8,7 +8,10 @@
  * and 'checkAndDisplayRank' functions as per your requirements.
  * 3. Device-based restriction: Each device can submit data only once, tracked via a device ID.
  * 4. Rank checking: Uses name and email for unique identification.
- * 5. Sheet structure: Adjusted for headers: Timestamp, Device ID, Name, Category, Shift, Email, Attempted Question, Correct Question, Wrong Question, Raw Score, Overall Rank, Shift Rank, Category Rank
+ * 5. Sheet structure: Headers: Timestamp, Device ID, Name, Category, Shift, Email, Attempted Question, Correct Question, Wrong Question, Raw Score, Overall Rank, Shift Rank, Category Rank
+ * 6. Tie-breaking: Candidates with equal Raw Scores get the same rank, and the next rank is skipped.
+ * 7. Tied count: Shows how many candidates share the same score for overall, shift, and category.
+ * 8. Validation: Attempted Questions <= Correct Questions + Wrong Questions.
  */
 
 // --- Loads the web app URL ---
@@ -32,6 +35,17 @@ function submitFormData(formData) {
         }
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return { success: false, message: "Please enter a valid email address." };
+        }
+
+        // Validate Attempted Questions <= Correct Questions + Wrong Questions
+        const attempted = parseInt(formData.attmptedQuestion, 10);
+        const correct = parseInt(formData.correctScore, 10);
+        const wrong = parseInt(formData.wrongQuestion, 10);
+        if (attempted > (correct + wrong)) {
+            return { success: false, message: "Attempted Questions cannot be greater than Correct Questions + Wrong Questions." };
+        }
+        if (attempted > 120) {
+            return { success: false, message: "Attempted Questions cannot exceed 120." };
         }
 
         // Check if device ID already exists in the sheet
@@ -85,8 +99,9 @@ function submitFormData(formData) {
 /**
  * Calculates and displays the rank for the given name and email.
  * Writes the calculated ranks back to the sheet.
+ * Includes count of candidates tied at the same score.
  * @param {Object} formData - User's name and email.
- * @returns {Object} Rank details or failure message.
+ * @returns {Object} Rank details, tied counts, or failure message.
  */
 function checkAndDisplayRank(formData) {
     try {
@@ -147,40 +162,70 @@ function checkAndDisplayRank(formData) {
             return (score != null && score !== "" && !isNaN(Number(score)));
         });
 
-        // Rank Calculation
+        // Sort data by Raw Score (descending)
         rankedData.sort((a, b) => Number(b[9]) - Number(a[9])); 
 
         let overallRank = 0;
         let shiftRank = 0;
         let categoryRank = 0;
+        let overallTiedCount = 0;
+        let shiftTiedCount = 0;
+        let categoryTiedCount = 0;
         let totalShiftCandidates = 0;
         let totalCategoryCandidates = 0;
-        
-        // Calculate Overall Rank
+
+        // Calculate Overall Rank and Tied Count
+        let currentRank = 0;
+        let lastScore = null;
         for (let i = 0; i < rankedData.length; i++) {
-            if (String(rankedData[i][5]).trim() === formData.email) {
-                overallRank = i + 1;
-                break;
+            const currentScore = Number(rankedData[i][9]);
+            if (currentScore !== lastScore) {
+                currentRank = i + 1; // New rank for new score
+                lastScore = currentScore;
+            }
+            if (Number(rankedData[i][9]) === Number(userRawScore)) {
+                overallTiedCount++;
+            }
+            if (String(rankedData[i][5]).trim() === formData.email && String(rankedData[i][2]).trim() === formData.name) {
+                overallRank = currentRank;
             }
         }
         
-        // Calculate Shift Rank
+        // Calculate Shift Rank and Tied Count
         const shiftCandidates = rankedData.filter(row => (String(row[4]).trim() === userShift));
         totalShiftCandidates = shiftCandidates.length;
+        currentRank = 0;
+        lastScore = null;
         for (let i = 0; i < shiftCandidates.length; i++) {
-            if (String(shiftCandidates[i][5]).trim() === formData.email) {
-                shiftRank = i + 1;
-                break;
+            const currentScore = Number(shiftCandidates[i][9]);
+            if (currentScore !== lastScore) {
+                currentRank = i + 1;
+                lastScore = currentScore;
+            }
+            if (Number(shiftCandidates[i][9]) === Number(userRawScore)) {
+                shiftTiedCount++;
+            }
+            if (String(shiftCandidates[i][5]).trim() === formData.email && String(shiftCandidates[i][2]).trim() === formData.name) {
+                shiftRank = currentRank;
             }
         }
 
-        // Calculate Category Rank
+        // Calculate Category Rank and Tied Count
         const categoryCandidates = rankedData.filter(row => (String(row[3]).trim() === userCategory));
         totalCategoryCandidates = categoryCandidates.length;
+        currentRank = 0;
+        lastScore = null;
         for (let i = 0; i < categoryCandidates.length; i++) {
-            if (String(categoryCandidates[i][5]).trim() === formData.email) {
-                categoryRank = i + 1;
-                break;
+            const currentScore = Number(categoryCandidates[i][9]);
+            if (currentScore !== lastScore) {
+                currentRank = i + 1;
+                lastScore = currentScore;
+            }
+            if (Number(categoryCandidates[i][9]) === Number(userRawScore)) {
+                categoryTiedCount++;
+            }
+            if (String(categoryCandidates[i][5]).trim() === formData.email && String(categoryCandidates[i][2]).trim() === formData.name) {
+                categoryRank = currentRank;
             }
         }
 
@@ -203,6 +248,9 @@ function checkAndDisplayRank(formData) {
                     totalShiftCandidates: totalShiftCandidates,
                     categoryRank: categoryRank,
                     totalCategoryCandidates: totalCategoryCandidates,
+                    overallTiedCount: overallTiedCount,
+                    shiftTiedCount: shiftTiedCount,
+                    categoryTiedCount: categoryTiedCount,
                     shift: userShift,
                     category: userCategory
                 };
@@ -219,6 +267,9 @@ function checkAndDisplayRank(formData) {
             totalShiftCandidates: totalShiftCandidates, 
             categoryRank: categoryRank,
             totalCategoryCandidates: totalCategoryCandidates,
+            overallTiedCount: overallTiedCount,
+            shiftTiedCount: shiftTiedCount,
+            categoryTiedCount: categoryTiedCount,
             shift: userShift,
             category: userCategory
         };
